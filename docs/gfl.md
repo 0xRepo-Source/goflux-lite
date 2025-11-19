@@ -1,9 +1,24 @@
 # gfl - File Transfer Client
 
-The `gfl` client provides command-line access to GoFlux Lite server for uploading, downloading, and listing files. It supports resumable uploads, authentication, and progress tracking.
+The `gfl` client provides command-line access to GoFlux Lite server for uploading, downloading, and listing files. It supports resumable uploads, authentication, auto-discovery, and progress tracking.
 
 ## Quick Start
 
+### Auto-Discovery (Recommended)
+```bash
+# Discover servers on network
+.\gfl.exe discover
+
+# Configure for discovered server  
+.\gfl.exe config 192.168.1.100:8080
+
+# Start transferring files
+.\gfl.exe put document.pdf files/document.pdf
+.\gfl.exe get files/document.pdf ./document.pdf
+.\gfl.exe ls
+```
+
+### Manual Configuration
 ```bash
 # Upload a file
 .\gfl.exe put document.pdf files/document.pdf
@@ -17,6 +32,61 @@ The `gfl` client provides command-line access to GoFlux Lite server for uploadin
 ```
 
 ## Commands
+
+### discover - Find Servers
+Scans the local network for GoFlux Lite servers.
+
+**Syntax:**
+```bash
+gfl discover
+```
+
+**Example:**
+```bash
+.\gfl.exe discover
+```
+
+**Output:**
+```
+Discovering GoFlux servers on local network...
+
+Found 2 GoFlux server(s):
+
+1. GoFlux Lite Server (v0.1.0-lite)
+   Address: 192.168.1.100:8080
+   Status:  Auth Required
+   Seen:    just now
+
+2. GoFlux Lite Server (v0.1.0-lite)  
+   Address: 192.168.1.50:9000
+   Status:  No Auth
+   Seen:    5s ago
+
+Use 'gfl config <address>' to configure your client for a server.
+```
+
+### config - Auto Configuration  
+Automatically configures the client for a discovered server.
+
+**Syntax:**
+```bash
+gfl config <server_address>
+```
+
+**Example:**
+```bash
+.\gfl.exe config 192.168.1.100:8080
+```
+
+**Output:**
+```
+Configuring client for server: 192.168.1.100:8080
+✓ Configuration saved to goflux.json
+
+⚠️ This server requires authentication.
+   Set GOFLUX_TOKEN_LITE environment variable or edit goflux.json
+   Contact the server administrator for a token.
+```
 
 ### put - Upload Files
 Uploads a local file to the server.

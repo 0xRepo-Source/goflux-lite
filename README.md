@@ -17,11 +17,36 @@
 
 ✨ **Minimal** - Basic functionality only, no web UI or extras  
 🔐 **Secure** - Path traversal protection and token authentication  
-🚀 **Fast** - Lightweight binaries  
+🚀 **Fast** - Lightweight binaries with progress tracking  
 📦 **Simple** - Each tool does one thing well  
 🔄 **Resume** - Resumable uploads for large files  
+🌐 **Auto-discovery** - Find servers automatically on local network
+📊 **Progress tracking** - Visual progress bars with speed display
+🔥 **Auto-firewall** - Automatic Windows Firewall configuration  
 
 ## Quick Start
+
+### 1. Auto-Discovery (Recommended)
+
+The easiest way to get started is using auto-discovery:
+
+```bash
+# Start server
+gfl-server
+
+# On another machine, discover servers
+gfl discover
+
+# Configure client for discovered server
+gfl config 192.168.1.100:8080
+
+# Start transferring files
+gfl put document.pdf files/document.pdf
+gfl get files/document.pdf downloaded.pdf
+gfl ls files/
+```
+
+### 2. Manual Configuration
 
 ### 1. Build
 ```powershell
@@ -90,6 +115,8 @@ gfl-server.exe [-config goflux.json] [-port 8080] [-version]
 gfl.exe [-config goflux.json] <command> [args...]
 
 Commands:
+  discover              Discover GoFlux servers on local network
+  config <server:port>  Configure client for discovered server
   get <remote> <local>  Download a file
   put <local> <remote>  Upload a file
   ls [path]            List files/directories  
@@ -129,6 +156,10 @@ Create `goflux.json`:
 ## Examples
 
 ```bash
+# Auto-discovery workflow
+.\gfl.exe discover
+.\gfl.exe config 192.168.1.100:8080
+
 # Start server on custom port
 .\gfl-server.exe -port 9000
 

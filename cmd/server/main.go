@@ -103,6 +103,26 @@ func main() {
 		fmt.Printf("Authentication enabled: %s\n", cfg.Server.TokensFile)
 	}
 
+	// Create server config for sharing with clients
+	serverConfig := &server.ServerConfig{
+		Version:     "0.1.0-lite",
+		AuthEnabled: cfg.Server.TokensFile != "",
+	}
+	serverConfig.Server.Address = cfg.Server.Address
+	serverConfig.Server.StorageDir = cfg.Server.StorageDir
+	serverConfig.Server.MetaDir = cfg.Server.MetaDir
+	serverConfig.Server.TokensFile = cfg.Server.TokensFile
+	serverConfig.Server.MaxFileSize = 1024 * 1024 * 1024 // 1GB default
+	srv.SetConfig(serverConfig)
+
+	// Enable discovery service
+	if err := srv.EnableDiscovery(cfg.Server.Address, "0.1.0-lite"); err != nil {
+		fmt.Printf("Warning: Failed to enable discovery: %v\n", err)
+	}
+
+	// Enable automatic firewall configuration
+	srv.EnableFirewall(cfg.Server.Address)
+
 	fmt.Printf("Starting goflux-lite server on %s\n", cfg.Server.Address)
 	fmt.Printf("Storage directory: %s\n", cfg.Server.StorageDir)
 	fmt.Printf("Configuration: %s\n", *configFile)

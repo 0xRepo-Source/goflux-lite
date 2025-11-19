@@ -5,6 +5,32 @@ All notable changes to GoFlux Lite will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Auto-discovery system**
+  - UDP broadcast service for server announcements
+  - `gfl discover` command to find servers on local network
+  - `gfl config <server>` command for automatic client configuration
+  - Real-time server status display (auth enabled/disabled)
+
+- **Enhanced progress tracking**
+  - Visual progress bar for file uploads > 1MB
+  - Real-time transfer speed display (B/s, KB/s, MB/s, GB/s)
+  - Human-readable file size formatting
+  - Chunked upload progress with chunk count display
+
+- **Automatic firewall configuration** 
+  - Windows Firewall rule creation for server and discovery ports
+  - Administrator privilege detection and friendly messages
+  - Automatic rule checking to prevent duplicates
+
+- **Improved user experience**
+  - Colored console output for authentication status
+  - Professional progress indicators with Unicode characters
+  - Smart upload modes (instant for small files, chunked for large)
+  - Enhanced error messages and user guidance
+
 ## [0.1.0] - 2025-11-19
 
 ### Added

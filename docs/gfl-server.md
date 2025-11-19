@@ -1,11 +1,11 @@
 # gfl-server - File Server
 
-The `gfl-server` is a lightweight file server that provides secure file upload, download, and listing operations through a REST API. It supports resumable uploads, token authentication, and chunked file transfers.
+The `gfl-server` is a lightweight file server that provides secure file upload, download, and listing operations through a REST API. It supports resumable uploads, token authentication, chunked file transfers, and automatic network discovery.
 
 ## Quick Start
 
 ```bash
-# Start server with default settings
+# Start server with default settings (includes auto-discovery)
 .\gfl-server.exe
 
 # Start on custom port
@@ -14,6 +14,8 @@ The `gfl-server` is a lightweight file server that provides secure file upload, 
 # Start with configuration file
 .\gfl-server.exe -config myconfig.json
 ```
+
+The server automatically announces itself on the local network (UDP port 8081) so clients can discover it using `gfl discover`.
 
 ## Command Line Options
 
@@ -72,6 +74,12 @@ The server uses a JSON configuration file (default: `goflux.json`):
 - Returns nonce for challenge-response authentication
 - No authentication required
 
+### Discovery  
+**GET /config** - Get server configuration for auto-discovery
+- Returns server configuration JSON for client setup
+- No authentication required
+- Used by `gfl config` command
+
 ### File Operations
 **POST /upload** - Upload file chunk
 - Content-Type: `application/json`
@@ -119,6 +127,13 @@ Authorization: Challenge <response>;<nonce>;<token_id>
 - `download` - Allow file downloads
 - `list` - Allow directory listing
 - `*` - All permissions (admin)
+
+### Network Discovery
+- **UDP Broadcast Service** - Automatically announces server presence
+- **Port:** 8081 (UDP) 
+- **Interval:** 30 seconds
+- **Format:** JSON with server info (name, version, address, auth status)
+- **Usage:** Enables `gfl discover` command to find servers
 
 ## Startup Messages
 

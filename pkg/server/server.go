@@ -15,13 +15,29 @@ import (
 	"github.com/0xRepo-Source/goflux-lite/pkg/transport"
 )
 
+// ServerConfig represents server configuration that can be shared with clients
+type ServerConfig struct {
+	Server struct {
+		Address     string `json:"address"`
+		StorageDir  string `json:"storage_dir"`
+		MetaDir     string `json:"meta_dir"`
+		TokensFile  string `json:"tokens_file,omitempty"`
+		MaxFileSize int64  `json:"max_file_size"`
+	} `json:"server"`
+	Version     string `json:"version"`
+	AuthEnabled bool   `json:"auth_enabled"`
+}
+
 // Server is a goflux server instance.
 type Server struct {
 	storage      storage.Storage
 	chunksDir    string               // directory for temporary chunk storage
 	sessionStore *resume.SessionStore // tracks upload sessions for resume
 	mu           sync.Mutex
-	authMiddle   *auth.Middleware // nil if auth disabled
+	authMiddle   *auth.Middleware  // nil if auth disabled
+	discovery    *DiscoveryService // nil if discovery disabled
+	serverConfig *ServerConfig     // configuration to share with clients
+	firewall     *FirewallManager  // manages firewall rules
 }
 
 // New creates a new Server.
@@ -49,10 +65,35 @@ func (s *Server) EnableAuth(tokenStore *auth.TokenStore) {
 	s.authMiddle = auth.NewMiddleware(tokenStore)
 }
 
+// EnableDiscovery enables the discovery service
+func (s *Server) EnableDiscovery(serverAddress, version string) error {
+	authEnabled := s.authMiddle != nil
+	discovery, err := NewDiscoveryService(serverAddress, version, authEnabled)
+	if err != nil {
+		return fmt.Errorf("failed to create discovery service: %w", err)
+	}
+	s.discovery = discovery
+	return nil
+}
+
+// SetConfig sets the server configuration to share with clients
+func (s *Server) SetConfig(config *ServerConfig) {
+	s.serverConfig = config
+}
+
+// EnableFirewall enables automatic firewall configuration
+func (s *Server) EnableFirewall(serverAddress string) {
+	serverPort := parsePortFromAddress(serverAddress)
+	s.firewall = NewFirewallManager(serverPort, DiscoveryPort)
+}
+
 // Start starts the HTTP server.
 func (s *Server) Start(addr string) error {
 	// Create a new ServeMux to avoid conflicts with default mux
 	mux := http.NewServeMux()
+
+	// Config endpoint (no auth required for auto-discovery)
+	mux.HandleFunc("/config", s.handleConfig)
 
 	// Register handlers with authentication if enabled
 	if s.authMiddle != nil {
@@ -72,6 +113,17 @@ func (s *Server) Start(addr string) error {
 		fmt.Println("\033[31m⚠️ Authentication disabled - all endpoints are public!\033[0m")
 		fmt.Println("\033[31mIt is recommended to enable authentication in production environments.\033[0m")
 		fmt.Println("\033[31mPlease run gfl-admin to create token files and enable auth.\033[0m")
+	}
+
+	// Configure firewall if enabled
+	if s.firewall != nil {
+		s.firewall.EnsureFirewallRules()
+	}
+
+	// Start discovery service if enabled
+	if s.discovery != nil {
+		s.discovery.Start()
+		defer s.discovery.Stop()
 	}
 
 	fmt.Printf("goflux server listening on %s\n", addr)
@@ -269,6 +321,25 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(files); err != nil {
+		http.Error(w, fmt.Sprintf("encode failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.serverConfig == nil {
+		http.Error(w, "server config not available", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*") // Allow cross-origin for discovery
+	if err := json.NewEncoder(w).Encode(s.serverConfig); err != nil {
 		http.Error(w, fmt.Sprintf("encode failed: %v", err), http.StatusInternalServerError)
 		return
 	}

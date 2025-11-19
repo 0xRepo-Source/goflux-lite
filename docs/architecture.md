@@ -50,6 +50,31 @@ sequenceDiagram
     S-->>C: authenticated response
 ```
 
+## Network Discovery Flow
+
+```mermaid
+sequenceDiagram
+    participant S as gfl-server
+    participant N as Local Network
+    participant C as gfl client
+    participant CF as goflux.json
+    
+    Note over S,CF: Auto-Discovery Process
+    
+    S->>N: UDP broadcast (server info)
+    Note over N: Every 30 seconds on port 8081
+    
+    C->>N: Listen for broadcasts
+    N-->>C: Server announcements
+    C->>C: List discovered servers
+    
+    Note over C,CF: Auto-Configuration
+    C->>S: GET /config
+    S-->>C: Server configuration
+    C->>CF: Write goflux.json
+    C-->>C: Client configured
+```
+
 ## File Upload Flow
 
 ```mermaid
@@ -221,11 +246,13 @@ flowchart TD
 ## Data Flow Summary
 
 1. **Setup**: Admin creates tokens using `gfl-admin`
-2. **Server Start**: Server loads tokens and starts listening
-3. **Client Auth**: Client uses token (env var or config) for authentication
-4. **File Operations**: Client performs authenticated file operations
-5. **Resume Support**: Interrupted uploads automatically resume
-6. **Session Persistence**: Upload state survives server restarts
+2. **Server Start**: Server loads tokens, starts listening, and begins UDP broadcasts
+3. **Client Discovery**: Client scans network using `gfl discover` 
+4. **Auto Config**: Client configures itself using `gfl config <server>`
+5. **Client Auth**: Client uses token (env var or config) for authentication
+6. **File Operations**: Client performs authenticated file operations
+7. **Resume Support**: Interrupted uploads automatically resume
+8. **Session Persistence**: Upload state survives server restarts
 
 ## Key Design Principles
 
