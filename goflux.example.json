@@ -1,0 +1,15 @@
+{
+  "server": {
+    "address": "localhost:8080",
+    "storage_dir": "./data",
+    "meta_dir": "./.goflux-meta",
+    "tokens_file": "tokens.json",
+    "tls_cert": "",
+    "tls_key": ""
+  },
+  "client": {
+    "server_url": "http://localhost:8080",
+    "chunk_size": 1048576,
+    "token": ""
+  }
+}
