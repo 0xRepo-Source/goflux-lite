@@ -1,5 +1,10 @@
 # GoFlux Lite
 
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org/)
+[![Release](https://img.shields.io/github/v/release/0xRepo-Source/goflux-lite?style=flat&logo=github)](https://github.com/0xRepo-Source/goflux-lite/releases)
+[![License](https://img.shields.io/github/license/0xRepo-Source/goflux-lite?style=flat)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/0xRepo-Source/goflux-lite)](https://goreportcard.com/report/github.com/0xRepo-Source/goflux-lite)
+
 **Simple file transfer tools** - Three lightweight binaries for basic file operations.
 
 ## Components

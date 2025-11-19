@@ -1,0 +1,105 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Build artifacts
+build/
+target/
+*.tar.gz
+*.zip
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# GoFlux Lite specific
+# Runtime data and storage
+data/
+.goflux-meta/
+*.json.bak
+
+# Configuration files with secrets
+goflux.json
+tokens.json
+config.json
+*.key
+*.cert
+*.pem
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Test coverage
+coverage.out
+coverage.html
+
+# Development and debugging
+debug
+debug.exe
+*.pprof
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+
+# Backup files
+*.backup
+*~
+
+# Archives
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tgz
+*.zip
+*.7z
+*.rar
+
+# Package files
+*.deb
+*.rpm
+*.msi
+*.dmg
+*.pkg
+
+# Docker
+Dockerfile.local
+docker-compose.override.yml
+.dockerignore.local
