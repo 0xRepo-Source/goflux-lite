@@ -21,6 +21,10 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.21'
+        cache: false  # Disable cache since we have no external dependencies
+    
+    - name: Download dependencies
+      run: go mod download
     
     - name: Run tests
       run: go test -v ./...
@@ -53,6 +57,7 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.21'
+        cache: false  # Disable cache since we have no external dependencies
     
     - name: Get version
       id: version
