@@ -5,14 +5,15 @@ This document provides an overview of how the three GoFlux Lite components inter
 ## Component Interaction Diagram
 
 ```mermaid
-graph TB
-    Admin[gfl-admin<br/>Token Management]
-    Server[gfl-server<br/>File Server]
-    Client[gfl<br/>File Operations]
-    TokenFile[(tokens.json<br/>Token Storage)]
-    ConfigFile[(goflux.json<br/>Configuration)]
-    Storage[(data/<br/>File Storage)]
-    MetaDir[(.goflux-meta/<br/>Session Data)]
+graph TD
+    Admin["gfl-admin<br/>Token Management"]
+    Server["gfl-server<br/>File Server"]
+    Client["gfl<br/>File Operations"]
+    TokenFile[("tokens.json<br/>Token Storage")]
+    ConfigFile[("goflux.json<br/>Configuration")]
+    Storage[("data/<br/>File Storage")]
+    MetaDir[(".goflux-meta/<br/>Session Data")]
+    EnvVar["GOFLUX_TOKEN_LITE<br/>Environment Variable"]
     
     %% Admin interactions
     Admin -->|Creates/Lists/Revokes| TokenFile
@@ -26,9 +27,9 @@ graph TB
     %% Client interactions
     Client -->|Reads config| ConfigFile
     Client -->|HTTP API calls| Server
-    Client -.->|Environment var| EnvVar[GOFLUX_TOKEN_LITE]
+    Client -.->|Uses if set| EnvVar
     
-    %% Flow styling
+    %% Styling
     classDef executable fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef storage fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef config fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
@@ -136,89 +137,89 @@ sequenceDiagram
 
 ### gfl-admin (Token Management)
 ```mermaid
-flowchart LR
-    Admin[gfl-admin] --> Create[Create Tokens]
-    Admin --> List[List Tokens]
-    Admin --> Revoke[Revoke Tokens]
+flowchart TD
+    Admin["gfl-admin"] --> Create["Create Tokens"]
+    Admin --> List["List Tokens"]
+    Admin --> Revoke["Revoke Tokens"]
     
-    Create --> Validate[Validate Permissions]
-    Create --> Generate[Generate Secure Token]
-    Create --> Store[Store in tokens.json]
+    Create --> Validate["Validate Permissions"]
+    Create --> Generate["Generate Secure Token"]
+    Create --> Store["Store in tokens.json"]
     
-    List --> Read[Read tokens.json]
-    List --> Format[Format Output]
+    List --> Read["Read tokens.json"]
+    List --> Format["Format Output"]
     
-    Revoke --> Find[Find Token]
-    Revoke --> Mark[Mark as Revoked]
-    Revoke --> Save[Save to tokens.json]
+    Revoke --> Find["Find Token"]
+    Revoke --> Mark["Mark as Revoked"]
+    Revoke --> Save["Save to tokens.json"]
 ```
 
 ### gfl-server (File Server)
 ```mermaid
-flowchart LR
-    Server[gfl-server] --> Auth[Authentication]
-    Server --> Upload[Upload Handler]
-    Server --> Download[Download Handler]
-    Server --> List[List Handler]
+flowchart TD
+    Server["gfl-server"] --> Auth["Authentication"]
+    Server --> Upload["Upload Handler"]
+    Server --> Download["Download Handler"]
+    Server --> ListOp["List Handler"]
     
-    Auth --> LoadTokens[Load tokens.json]
-    Auth --> ValidateReq[Validate Requests]
-    Auth --> Challenge[Challenge-Response]
+    Auth --> LoadTokens["Load tokens.json"]
+    Auth --> ValidateReq["Validate Requests"]
+    Auth --> Challenge["Challenge-Response"]
     
-    Upload --> Chunks[Manage Chunks]
-    Upload --> Sessions[Track Sessions]
-    Upload --> Assemble[Assemble Files]
+    Upload --> Chunks["Manage Chunks"]
+    Upload --> Sessions["Track Sessions"]
+    Upload --> Assemble["Assemble Files"]
     
-    Download --> ReadFile[Read File]
-    Download --> Stream[Stream Response]
+    Download --> ReadFile["Read File"]
+    Download --> Stream["Stream Response"]
     
-    List --> ScanDir[Scan Directory]
-    List --> FilterPaths[Filter Paths]
+    ListOp --> ScanDir["Scan Directory"]
+    ListOp --> FilterPaths["Filter Paths"]
 ```
 
 ### gfl (Client)
 ```mermaid
-flowchart LR
-    Client[gfl] --> Put[put command]
-    Client --> Get[get command]
-    Client --> Ls[ls command]
+flowchart TD
+    Client["gfl"] --> Put["put command"]
+    Client --> Get["get command"]
+    Client --> Ls["ls command"]
     
-    Put --> ChunkFile[Split into Chunks]
-    Put --> Upload[Upload Chunks]
-    Put --> CheckStatus[Check Status]
-    Put --> Resume[Resume if Needed]
+    Put --> ChunkFile["Split into Chunks"]
+    Put --> Upload["Upload Chunks"]
+    Put --> CheckStatus["Check Status"]
+    Put --> Resume["Resume if Needed"]
     
-    Get --> Request[Request File]
-    Get --> Receive[Receive Data]
-    Get --> SaveLocal[Save Locally]
+    Get --> Request["Request File"]
+    Get --> Receive["Receive Data"]
+    Get --> SaveLocal["Save Locally"]
     
-    Ls --> ListReq[List Request]
-    Ls --> ParseResp[Parse Response]
-    Ls --> Display[Display Results]
+    Ls --> ListReq["List Request"]
+    Ls --> ParseResp["Parse Response"]
+    Ls --> Display["Display Results"]
 ```
 
 ## Security Architecture
 
 ```mermaid
-graph TB
-    subgraph "Authentication Layer"
-        Token[Token-based Auth]
-        Challenge[Challenge-Response]
-        Permissions[Permission System]
+graph TD
+    subgraph Auth ["Authentication Layer"]
+        Token["Token-based Auth"]
+        Challenge["Challenge-Response"]
+        Permissions["Permission System"]
     end
     
-    subgraph "Network Security"
-        HTTPS[Optional HTTPS/TLS]
-        Headers[Authorization Headers]
+    subgraph Network ["Network Security"]
+        HTTPS["Optional HTTPS/TLS"]
+        Headers["Authorization Headers"]
     end
     
-    subgraph "File System Security"
-        PathSanitize[Path Sanitization]
-        Traversal[Traversal Protection]
-        Isolation[Storage Isolation]
+    subgraph FileSystem ["File System Security"]
+        PathSanitize["Path Sanitization"]
+        Traversal["Traversal Protection"]
+        Isolation["Storage Isolation"]
     end
     
-    Client --> HTTPS
+    ClientReq["Client Request"] --> HTTPS
     HTTPS --> Token
     Token --> Permissions
     Permissions --> PathSanitize
