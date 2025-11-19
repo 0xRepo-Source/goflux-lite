@@ -48,6 +48,8 @@ sequenceDiagram
     C->>S: API request + token
     S->>S: validate token
     S-->>C: authenticated response
+```
+
 ## File Upload Flow
 
 ```mermaid
