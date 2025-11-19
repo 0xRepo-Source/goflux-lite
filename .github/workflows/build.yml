@@ -1,0 +1,149 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Run tests
+      run: go test -v ./...
+    
+    - name: Run go vet
+      run: go vet ./...
+    
+    - name: Run staticcheck
+      uses: dominikh/staticcheck-action@v1.3.0
+      with:
+        version: "2023.1.6"
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Get version
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Build binaries
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        VERSION: ${{ steps.version.outputs.VERSION }}
+      run: |
+        mkdir -p dist
+        
+        # Build server
+        go build -ldflags "-X main.version=$VERSION" -o dist/gfl-server-$GOOS-$GOARCH ./cmd/server
+        
+        # Build client  
+        go build -ldflags "-X main.version=$VERSION" -o dist/gfl-$GOOS-$GOARCH ./cmd/client
+        
+        # Build admin
+        go build -ldflags "-X main.version=$VERSION" -o dist/gfl-admin-$GOOS-$GOARCH ./cmd/admin
+        
+        # Add .exe extension for Windows
+        if [ "$GOOS" = "windows" ]; then
+          mv dist/gfl-server-$GOOS-$GOARCH dist/gfl-server-$GOOS-$GOARCH.exe
+          mv dist/gfl-$GOOS-$GOARCH dist/gfl-$GOOS-$GOARCH.exe
+          mv dist/gfl-admin-$GOOS-$GOARCH dist/gfl-admin-$GOOS-$GOARCH.exe
+        fi
+    
+    - name: Create release archives
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        VERSION: ${{ steps.version.outputs.VERSION }}
+      run: |
+        cd dist
+        
+        if [ "$GOOS" = "windows" ]; then
+          zip -r goflux-lite-$VERSION-$GOOS-$GOARCH.zip \
+            gfl-server-$GOOS-$GOARCH.exe \
+            gfl-$GOOS-$GOARCH.exe \
+            gfl-admin-$GOOS-$GOARCH.exe
+        else
+          tar -czf goflux-lite-$VERSION-$GOOS-$GOARCH.tar.gz \
+            gfl-server-$GOOS-$GOARCH \
+            gfl-$GOOS-$GOARCH \
+            gfl-admin-$GOOS-$GOARCH
+        fi
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: goflux-lite-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: dist/goflux-lite-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+    
+    - name: Get version
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Prepare release assets
+      run: |
+        mkdir -p release
+        find artifacts -name "*.tar.gz" -o -name "*.zip" | xargs -I {} cp {} release/
+        
+        # Generate checksums
+        cd release
+        sha256sum * > checksums.txt
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        name: GoFlux Lite ${{ steps.version.outputs.VERSION }}
+        body_path: .github/RELEASE_NOTES.md
+        files: |
+          release/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -16,7 +16,7 @@
 ## Features
 
 ✨ **Minimal** - Basic functionality only, no web UI or extras  
-🔐 **Secure** - Same security fixes as GoFlux v0.4.2  
+🔐 **Secure** - Path traversal protection and token authentication  
 🚀 **Fast** - Lightweight binaries  
 📦 **Simple** - Each tool does one thing well  
 🔄 **Resume** - Resumable uploads for large files  
@@ -171,11 +171,10 @@ $env:GOFLUX_TOKEN_LITE = "your-token-here"
 
 **Kept:**
 - Core file operations (put/get/ls)
-- Security fixes from v0.4.2
-- Token authentication  
+- Token authentication
 - Resume functionality for large files
 - Multi-chunk uploads with session persistence
 
 ## Version
 
-GoFlux Lite v0.4.2 - Based on GoFlux v0.4.2 security release
+GoFlux Lite v0.1.0 - First stable release
