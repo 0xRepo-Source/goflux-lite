@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- No changes documented yet.
+
+## [0.1.1] - 2025-11-22
+
 ### Added
 - **Auto-discovery system**
   - UDP broadcast service for server announcements
@@ -89,4 +93,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Concurrent connection support
 - Efficient chunked transfers
 
+[Unreleased]: https://github.com/0xRepo-Source/goflux-lite/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/0xRepo-Source/goflux-lite/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/0xRepo-Source/goflux-lite/releases/tag/v0.1.0
