@@ -188,8 +188,7 @@ func doPut(client *transport.HTTPClient, args []string) {
 		os.Exit(1)
 	}
 
-	remotePath := strings.TrimSpace(args[len(args)-1])
-	localPath := strings.TrimSpace(strings.Join(args[:len(args)-1], " "))
+	localPath, remotePath := resolvePutPaths(args)
 	if remotePath == "" || localPath == "" {
 		fmt.Println("Usage: put <local_path> <remote_path>")
 		os.Exit(1)
@@ -473,4 +472,35 @@ func doMkdir(client *transport.HTTPClient, args []string) {
 	}
 
 	fmt.Printf("✓ Successfully created directory: %s\n", path)
+}
+
+func resolvePutPaths(args []string) (string, string) {
+	trimmed := make([]string, 0, len(args))
+	for _, part := range args {
+		piece := strings.TrimSpace(part)
+		if piece != "" {
+			trimmed = append(trimmed, piece)
+		}
+	}
+
+	if len(trimmed) < 2 {
+		return "", ""
+	}
+
+	for split := len(trimmed) - 1; split >= 1; split-- {
+		localCandidate := strings.TrimSpace(strings.Join(trimmed[:split], " "))
+		remoteCandidate := strings.TrimSpace(strings.Join(trimmed[split:], " "))
+
+		if localCandidate == "" || remoteCandidate == "" {
+			continue
+		}
+
+		if _, err := os.Stat(localCandidate); err == nil {
+			return localCandidate, remoteCandidate
+		}
+	}
+
+	localPath := strings.TrimSpace(strings.Join(trimmed[:len(trimmed)-1], " "))
+	remotePath := strings.TrimSpace(trimmed[len(trimmed)-1])
+	return localPath, remotePath
 }
