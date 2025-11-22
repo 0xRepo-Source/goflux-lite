@@ -182,3 +182,55 @@ func (h *HTTPClient) List(path string) ([]string, error) {
 	}
 	return files, nil
 }
+
+// Delete removes a file or directory at the specified path.
+func (h *HTTPClient) Delete(path string) error {
+	req, err := http.NewRequest("DELETE", h.BaseURL+"/delete?path="+path, nil)
+	if err != nil {
+		return err
+	}
+
+	// Add auth token if set
+	if h.authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+h.authToken)
+	}
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("delete failed: %s", string(body))
+	}
+
+	return nil
+}
+
+// Mkdir creates a directory at the specified path.
+func (h *HTTPClient) Mkdir(path string) error {
+	req, err := http.NewRequest("POST", h.BaseURL+"/mkdir?path="+path, nil)
+	if err != nil {
+		return err
+	}
+
+	// Add auth token if set
+	if h.authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+h.authToken)
+	}
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("mkdir failed: %s", string(body))
+	}
+
+	return nil
+}

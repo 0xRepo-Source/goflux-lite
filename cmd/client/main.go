@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/0xRepo-Source/goflux-lite/pkg/config"
@@ -13,7 +15,9 @@ import (
 )
 
 func main() {
-	configFile := flag.String("config", "goflux.json", "path to configuration file")
+	defaultConfigPath := filepath.Join(executableDir(), "goflux.json")
+
+	configFile := flag.String("config", defaultConfigPath, "path to configuration file")
 	version := flag.Bool("version", false, "print version")
 	flag.Parse()
 
@@ -60,6 +64,10 @@ func main() {
 		doPut(client, args[1:])
 	case "ls":
 		doList(client, args[1:])
+	case "rm":
+		doDelete(client, args[1:])
+	case "mkdir":
+		doMkdir(client, args[1:])
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printUsage()
@@ -83,6 +91,8 @@ COMMANDS:
   get <remote> <local>  Download a file
   put <local> <remote>  Upload a file
   ls [path]            List files/directories
+  rm <path>            Remove file or directory
+  mkdir <path>         Create directory
 
 EXAMPLES:
   gfl discover
@@ -90,18 +100,41 @@ EXAMPLES:
   gfl put document.pdf files/document.pdf
   gfl get files/document.pdf downloaded.pdf
   gfl ls files/
-
-NOTE: rm and mkdir not available in lite version
+  gfl mkdir uploads/
+  gfl rm old-file.txt
 
 `)
 }
 
 func loadConfig(configFile string) (*config.Config, error) {
-	// Try to find config file
-	configPaths := []string{configFile, "config.json", "../goflux.json"}
+	execDir := executableDir()
 
+	// Try to find config file by checking provided path first, then standard locations
+	configPaths := []string{}
+	if configFile != "" {
+		configPaths = append(configPaths, configFile)
+		if !filepath.IsAbs(configFile) {
+			configPaths = append(configPaths, filepath.Join(execDir, configFile))
+		}
+	}
+
+	configPaths = append(configPaths,
+		filepath.Join(execDir, "goflux.json"),
+		filepath.Join(execDir, "config.json"),
+		"config.json",
+	)
+
+	seen := make(map[string]struct{})
 	for _, path := range configPaths {
-		if _, err := os.Stat(path); err == nil {
+		if path == "" {
+			continue
+		}
+		if _, exists := seen[path]; exists {
+			continue
+		}
+		seen[path] = struct{}{}
+
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
 			return config.LoadOrCreateConfig(path)
 		}
 	}
@@ -121,12 +154,19 @@ func doGet(client *transport.HTTPClient, args []string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Downloading %s...\n", args[0])
+	remotePath := strings.TrimSpace(args[0])
+	localPath := strings.TrimSpace(strings.Join(args[1:], " "))
+	if remotePath == "" || localPath == "" {
+		fmt.Println("Usage: get <remote_path> <local_path>")
+		os.Exit(1)
+	}
+
+	fmt.Printf("Downloading %s...\n", remotePath)
 
 	// For downloads, we don't have chunking yet, so just show a simple progress indicator
 	fmt.Print("Progress: ")
 
-	data, err := client.Download(args[0])
+	data, err := client.Download(remotePath)
 	if err != nil {
 		log.Fatalf("Download failed: %v", err)
 	}
@@ -135,11 +175,11 @@ func doGet(client *transport.HTTPClient, args []string) {
 	fmt.Print("████████████████████████████████████████████████████")
 	fmt.Printf("\n")
 
-	if err := os.WriteFile(args[1], data, 0644); err != nil {
+	if err := os.WriteFile(localPath, data, 0644); err != nil {
 		log.Fatalf("Failed to write file: %v", err)
 	}
 
-	fmt.Printf("✓ Download complete: %s → %s (%d bytes)\n", args[0], args[1], len(data))
+	fmt.Printf("✓ Download complete: %s → %s (%d bytes)\n", remotePath, localPath, len(data))
 }
 
 func doPut(client *transport.HTTPClient, args []string) {
@@ -148,14 +188,21 @@ func doPut(client *transport.HTTPClient, args []string) {
 		os.Exit(1)
 	}
 
+	remotePath := strings.TrimSpace(args[len(args)-1])
+	localPath := strings.TrimSpace(strings.Join(args[:len(args)-1], " "))
+	if remotePath == "" || localPath == "" {
+		fmt.Println("Usage: put <local_path> <remote_path>")
+		os.Exit(1)
+	}
+
 	// Check if file exists
-	_, err := os.Stat(args[0])
+	_, err := os.Stat(localPath)
 	if err != nil {
 		log.Fatalf("File not found: %v", err)
 	}
 
 	// Read file data
-	data, err := os.ReadFile(args[0])
+	data, err := os.ReadFile(localPath)
 	if err != nil {
 		log.Fatalf("Failed to read file: %v", err)
 	}
@@ -165,10 +212,10 @@ func doPut(client *transport.HTTPClient, args []string) {
 
 	// For small files, upload as single chunk without progress bar
 	if fileSize < chunkSize {
-		fmt.Printf("Uploading %s (%d bytes)...\n", args[0], fileSize)
+		fmt.Printf("Uploading %s (%d bytes)...\n", localPath, fileSize)
 
 		chunkData := transport.ChunkData{
-			Path:     args[1],
+			Path:     remotePath,
 			ChunkID:  0,
 			Data:     data,
 			Checksum: "", // Simplified - no checksum for lite version
@@ -179,13 +226,13 @@ func doPut(client *transport.HTTPClient, args []string) {
 			log.Fatalf("Upload failed: %v", err)
 		}
 
-		fmt.Printf("✓ Upload complete: %s → %s (%d bytes)\n", args[0], args[1], fileSize)
+		fmt.Printf("✓ Upload complete: %s → %s (%d bytes)\n", localPath, remotePath, fileSize)
 		return
 	}
 
 	// For larger files, use chunked upload with progress bar
 	totalChunks := (fileSize + chunkSize - 1) / chunkSize
-	fmt.Printf("Uploading %s (%d bytes) in %d chunks...\n", args[0], fileSize, totalChunks)
+	fmt.Printf("Uploading %s (%d bytes) in %d chunks...\n", localPath, fileSize, totalChunks)
 
 	// Create progress bar and speed tracking
 	progressWidth := 50
@@ -199,7 +246,7 @@ func doPut(client *transport.HTTPClient, args []string) {
 		}
 
 		chunkData := transport.ChunkData{
-			Path:     args[1],
+			Path:     remotePath,
 			ChunkID:  i,
 			Data:     data[start:end],
 			Checksum: "", // Simplified - no checksum for lite version
@@ -246,13 +293,16 @@ func doPut(client *transport.HTTPClient, args []string) {
 		}
 	}
 
-	fmt.Printf("✓ Upload complete: %s → %s (%d bytes)\n", args[0], args[1], fileSize)
+	fmt.Printf("✓ Upload complete: %s → %s (%d bytes)\n", localPath, remotePath, fileSize)
 }
 
 func doList(client *transport.HTTPClient, args []string) {
 	path := "/"
 	if len(args) > 0 {
-		path = args[0]
+		joinedPath := strings.TrimSpace(strings.Join(args, " "))
+		if joinedPath != "" {
+			path = joinedPath
+		}
 	}
 
 	files, err := client.List(path)
@@ -314,11 +364,12 @@ func doConfig(args []string) {
 		log.Fatalf("Failed to create config: %v", err)
 	}
 
-	if err := os.WriteFile("goflux.json", configJSON, 0644); err != nil {
+	configPath := filepath.Join(executableDir(), "goflux.json")
+	if err := os.WriteFile(configPath, configJSON, 0644); err != nil {
 		log.Fatalf("Failed to write config file: %v", err)
 	}
 
-	fmt.Println("✓ Configuration saved to goflux.json")
+	fmt.Printf("✓ Configuration saved to %s\n", configPath)
 
 	// Show auth info if required
 	if serverConfig, ok := config["server"].(map[string]interface{}); ok {
@@ -329,6 +380,31 @@ func doConfig(args []string) {
 			fmt.Println("   Contact the server administrator for a token.")
 		}
 	}
+}
+
+func executableDir() string {
+	exePath, err := os.Executable()
+	if err != nil {
+		log.Fatalf("Failed to determine executable path: %v", err)
+	}
+
+	if exePath == "" {
+		if wd, err := os.Getwd(); err == nil {
+			return wd
+		}
+		log.Fatal("Executable path is empty and working directory is unavailable")
+	}
+
+	dir := filepath.Dir(exePath)
+
+	// When running via `go run`, the executable lives in a temporary go-build folder; fall back to CWD
+	if strings.Contains(dir, fmt.Sprintf("%cgo-build", os.PathSeparator)) {
+		if wd, err := os.Getwd(); err == nil {
+			return wd
+		}
+	}
+
+	return dir
 }
 
 // formatBytes formats byte counts in human-readable format
@@ -357,4 +433,44 @@ func formatSpeed(bytesPerSecond float64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB/s", bytesPerSecond/div, "KMGTPE"[exp])
+}
+
+func doDelete(client *transport.HTTPClient, args []string) {
+	if len(args) < 1 {
+		fmt.Println("Usage: rm <path>")
+		os.Exit(1)
+	}
+
+	path := strings.TrimSpace(strings.Join(args, " "))
+	if path == "" {
+		fmt.Println("Usage: rm <path>")
+		os.Exit(1)
+	}
+	fmt.Printf("Deleting %s...\n", path)
+
+	if err := client.Delete(path); err != nil {
+		log.Fatalf("Delete failed: %v", err)
+	}
+
+	fmt.Printf("✓ Successfully deleted: %s\n", path)
+}
+
+func doMkdir(client *transport.HTTPClient, args []string) {
+	if len(args) < 1 {
+		fmt.Println("Usage: mkdir <path>")
+		os.Exit(1)
+	}
+
+	path := strings.TrimSpace(strings.Join(args, " "))
+	if path == "" {
+		fmt.Println("Usage: mkdir <path>")
+		os.Exit(1)
+	}
+	fmt.Printf("Creating directory %s...\n", path)
+
+	if err := client.Mkdir(path); err != nil {
+		log.Fatalf("Mkdir failed: %v", err)
+	}
+
+	fmt.Printf("✓ Successfully created directory: %s\n", path)
 }

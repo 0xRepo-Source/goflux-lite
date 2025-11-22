@@ -13,6 +13,8 @@ type Storage interface {
 	Get(path string) ([]byte, error)
 	Exists(path string) bool
 	List(path string) ([]string, error)
+	Delete(path string) error
+	Mkdir(path string) error
 }
 
 // Local is a simple local filesystem storage implementation.
@@ -102,4 +104,36 @@ func (l *Local) List(path string) ([]string, error) {
 		names = append(names, e.Name())
 	}
 	return names, nil
+}
+
+func (l *Local) Delete(path string) error {
+	fullPath, err := l.sanitizePath(path)
+	if err != nil {
+		return fmt.Errorf("invalid path: %w", err)
+	}
+
+	// Check if file/directory exists
+	info, err := os.Stat(fullPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("path does not exist: %s", path)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to stat path: %w", err)
+	}
+
+	// Remove file or directory (recursively)
+	if info.IsDir() {
+		return os.RemoveAll(fullPath)
+	}
+	return os.Remove(fullPath)
+}
+
+func (l *Local) Mkdir(path string) error {
+	fullPath, err := l.sanitizePath(path)
+	if err != nil {
+		return fmt.Errorf("invalid path: %w", err)
+	}
+
+	// Create directory with parent directories
+	return os.MkdirAll(fullPath, 0755)
 }

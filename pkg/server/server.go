@@ -104,12 +104,16 @@ func (s *Server) Start(addr string) error {
 		mux.HandleFunc("/upload/status", s.authMiddle.RequireAuth("upload", s.handleUploadStatus))
 		mux.HandleFunc("/download", s.authMiddle.RequireAuth("download", s.handleDownload))
 		mux.HandleFunc("/list", s.authMiddle.RequireAuth("list", s.handleList))
+		mux.HandleFunc("/delete", s.authMiddle.RequireAuth("delete", s.handleDelete))
+		mux.HandleFunc("/mkdir", s.authMiddle.RequireAuth("mkdir", s.handleMkdir))
 		fmt.Println("\033[32mAuthentication enabled (challenge-response supported)\033[0m")
 	} else {
 		mux.HandleFunc("/upload", s.handleUpload)
 		mux.HandleFunc("/upload/status", s.handleUploadStatus)
 		mux.HandleFunc("/download", s.handleDownload)
 		mux.HandleFunc("/list", s.handleList)
+		mux.HandleFunc("/delete", s.handleDelete)
+		mux.HandleFunc("/mkdir", s.handleMkdir)
 		fmt.Println("\033[31m⚠️ Authentication disabled - all endpoints are public!\033[0m")
 		fmt.Println("\033[31mIt is recommended to enable authentication in production environments.\033[0m")
 		fmt.Println("\033[31mPlease run gfl-admin to create token files and enable auth.\033[0m")
@@ -343,4 +347,46 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("encode failed: %v", err), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "path parameter required", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.storage.Delete(path); err != nil {
+		http.Error(w, fmt.Sprintf("delete failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Successfully deleted: %s", path)
+}
+
+func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "path parameter required", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.storage.Mkdir(path); err != nil {
+		http.Error(w, fmt.Sprintf("mkdir failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	fmt.Fprintf(w, "Successfully created directory: %s", path)
 }

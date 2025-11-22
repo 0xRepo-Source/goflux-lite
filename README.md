@@ -9,20 +9,25 @@
 
 ## Components
 
-🖥️ **Server** (`gfl-server.exe`) - Minimal file server without web UI  
-📁 **Client** (`gfl.exe`) - Command-line file operations  
-🔑 **Admin** (`gfl-admin.exe`) - Token management  
+**Server** (`gfl-server.exe`) - Minimal file server without web UI  
+**Client** (`gfl.exe`) - Command-line file operations  
+**Admin** (`gfl-admin.exe`) - Token management  
 
 ## Features
 
-✨ **Minimal** - Basic functionality only, no web UI or extras  
-🔐 **Secure** - Path traversal protection and token authentication  
-🚀 **Fast** - Lightweight binaries with progress tracking  
-📦 **Simple** - Each tool does one thing well  
-🔄 **Resume** - Resumable uploads for large files  
-🌐 **Auto-discovery** - Find servers automatically on local network
-📊 **Progress tracking** - Visual progress bars with speed display
-🔥 **Auto-firewall** - Automatic Windows Firewall configuration  
+**Minimal** - Basic functionality only, no web UI or extras  
+**Secure** - Path traversal protection and token authentication  
+**Fast** - Lightweight binaries with progress tracking  
+**Simple** - Each tool does one thing well  
+**Resume** - Resumable uploads for large files  
+**Auto-discovery** - Find servers automatically on local network
+**Progress tracking** - Visual progress bars with speed display
+**Auto-firewall** - Automatic Windows Firewall configuration  
+
+## Behavior Notes
+
+- `gfl.exe` creates and reads `goflux.json` from the directory where the executable lives. Running commands from other working directories no longer leaves additional config files behind.
+- Client commands accept paths that contain spaces without additional quoting (for example `gfl put My Files\archive.zip remote/archive.zip`).
 
 ## Quick Start
 
@@ -121,7 +126,7 @@ Commands:
   put <local> <remote>  Upload a file
   ls [path]            List files/directories  
 
-Note: rm (remove) and mkdir not available in lite version
+By default the client reads `goflux.json` from the directory where `gfl.exe` resides. Use `-config` to point at an alternate configuration file.
 ```
 
 ### Admin (`gfl-admin.exe`)
@@ -190,9 +195,9 @@ $env:GOFLUX_TOKEN_LITE = "your-token-here"
 
 ## Security
 
-- ✅ **Path Traversal Protection** - Prevents `../` attacks  
-- ✅ **Token Authentication** - Secure API access
-- ✅ **Permission System** - Granular access controls
+- **Path Traversal Protection** - Prevents `../` attacks  
+- **Token Authentication** - Secure API access
+- **Permission System** - Granular access controls
 
 ## Differences from Full GoFlux
 
