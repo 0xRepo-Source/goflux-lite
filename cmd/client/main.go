@@ -90,8 +90,8 @@ OPTIONS:
 COMMANDS:
   discover              Discover GoFlux servers on local network
   config <server>       Configure client for discovered server
-  get <remote> <local>  Download a file
-  put <local> <remote>  Upload file(s) (supports wildcards)
+  get <remote> <local>  Download file(s) - supports wildcards (*, ?, [])
+  put <local> <remote>  Upload file(s) - supports wildcards (*, ?, [])
   ls [path]            List files/directories
   rm <path>            Remove file or directory
   mkdir <path>         Create directory
@@ -103,6 +103,8 @@ EXAMPLES:
   gfl put *.txt uploads/          # Upload all .txt files
   gfl put report* archives/       # Upload files matching pattern
   gfl get files/document.pdf downloaded.pdf
+  gfl get files/*.txt downloads/  # Download all .txt files
+  gfl get logs/2024*.log ./logs/  # Download matching log files
   gfl ls files/
   gfl mkdir uploads/
   gfl rm old-file.txt
@@ -165,6 +167,63 @@ func doGet(client *transport.HTTPClient, args []string) {
 		os.Exit(1)
 	}
 
+	// Check if remote path contains wildcards
+	if strings.ContainsAny(remotePath, "*?[]") {
+		doBatchGet(client, remotePath, localPath)
+		return
+	}
+
+	// Single file download
+	downloadSingleFile(client, remotePath, localPath)
+}
+
+func doBatchGet(client *transport.HTTPClient, pattern, localDestDir string) {
+	// Parse pattern to get directory and filename pattern
+	dir := filepath.Dir(pattern)
+	filePattern := filepath.Base(pattern)
+
+	// Ensure local destination is a directory
+	if err := os.MkdirAll(localDestDir, 0755); err != nil {
+		log.Fatalf("Failed to create destination directory: %v", err)
+	}
+
+	// List files in remote directory
+	files, err := client.List(dir)
+	if err != nil {
+		log.Fatalf("Failed to list remote directory: %v", err)
+	}
+
+	// Match files against pattern
+	var matches []string
+	for _, file := range files {
+		matched, err := filepath.Match(filePattern, file)
+		if err != nil {
+			log.Fatalf("Invalid pattern: %v", err)
+		}
+		if matched {
+			matches = append(matches, file)
+		}
+	}
+
+	if len(matches) == 0 {
+		log.Fatalf("No files match pattern: %s", pattern)
+	}
+
+	fmt.Printf("Found %d files matching %s\n", len(matches), pattern)
+
+	// Download each matched file
+	for i, filename := range matches {
+		remotePath := filepath.ToSlash(filepath.Join(dir, filename))
+		localPath := filepath.Join(localDestDir, filename)
+
+		fmt.Printf("\n[%d/%d] ", i+1, len(matches))
+		downloadSingleFile(client, remotePath, localPath)
+	}
+
+	fmt.Printf("\n✓ Downloaded %d files to %s\n", len(matches), localDestDir)
+}
+
+func downloadSingleFile(client *transport.HTTPClient, remotePath, localPath string) {
 	fmt.Printf("Downloading %s...\n", remotePath)
 
 	// For downloads, we don't have chunking yet, so just show a simple progress indicator

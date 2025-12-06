@@ -124,7 +124,7 @@ gfl.exe [-config goflux.json] <command> [args...]
 Commands:
   discover              Discover GoFlux servers on local network
   config <server:port>  Configure client for discovered server
-  get <remote> <local>  Download a file
+  get <remote> <local>  Download file(s) - supports wildcards (*, ?, [])
   put <local> <remote>  Upload file(s) - supports wildcards (*, ?, [])
   ls [path]            List files/directories  
 
@@ -132,6 +132,8 @@ Wildcard examples:
   gfl put *.txt uploads/           # Upload all .txt files
   gfl put report*.pdf archives/    # Upload files matching pattern
   gfl put file[123].log logs/      # Upload file1.log, file2.log, file3.log
+  gfl get files/*.txt downloads/   # Download all .txt files from remote
+  gfl get logs/2024*.log ./logs/   # Download matching log files
 
 By default the client reads `goflux.json` from the directory where `gfl.exe` resides. Use `-config` to point at an alternate configuration file.
 ```
@@ -196,8 +198,13 @@ Create `goflux.json`:
 $env:GOFLUX_TOKEN_LITE = "your-token-here"
 .\gfl.exe put document.pdf files/document.pdf
 
-# Download to current directory
+# Download single file
 .\gfl.exe get backups/largefile.zip ./largefile.zip
+
+# Download multiple files with wildcards
+.\gfl.exe get files/*.txt downloads/
+.\gfl.exe get logs/2024-*.log ./logs/
+.\gfl.exe get reports/report[12].pdf ./reports/
 
 # Browse directories
 .\gfl.exe ls
