@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/0xRepo-Source/goflux-lite/pkg/config"
+	"github.com/0xRepo-Source/goflux-lite/pkg/glob"
 	"github.com/0xRepo-Source/goflux-lite/pkg/transport"
 )
 
@@ -89,7 +90,7 @@ COMMANDS:
   discover              Discover GoFlux servers on local network
   config <server>       Configure client for discovered server
   get <remote> <local>  Download a file
-  put <local> <remote>  Upload a file
+  put <local> <remote>  Upload file(s) (supports wildcards)
   ls [path]            List files/directories
   rm <path>            Remove file or directory
   mkdir <path>         Create directory
@@ -98,6 +99,8 @@ EXAMPLES:
   gfl discover
   gfl config 192.168.1.100:8080
   gfl put document.pdf files/document.pdf
+  gfl put *.txt uploads/          # Upload all .txt files
+  gfl put report* archives/       # Upload files matching pattern
   gfl get files/document.pdf downloaded.pdf
   gfl ls files/
   gfl mkdir uploads/
@@ -188,18 +191,55 @@ func doPut(client *transport.HTTPClient, args []string) {
 		os.Exit(1)
 	}
 
-	localPath, remotePath := resolvePutPaths(args)
-	if remotePath == "" || localPath == "" {
+	// Extract local pattern and remote path
+	localPattern := args[0]
+	remotePath := strings.TrimSpace(strings.Join(args[1:], " "))
+
+	if remotePath == "" {
 		fmt.Println("Usage: put <local_path> <remote_path>")
 		os.Exit(1)
 	}
 
-	// Check if file exists
-	_, err := os.Stat(localPath)
+	// Expand glob patterns
+	matches, err := glob.Expand([]string{localPattern})
 	if err != nil {
-		log.Fatalf("File not found: %v", err)
+		log.Fatalf("Pattern expansion failed: %v", err)
 	}
 
+	if len(matches) == 0 {
+		log.Fatalf("No files match pattern: %s", localPattern)
+	}
+
+	// Upload each matched file
+	for i, match := range matches {
+		var targetPath string
+
+		// If uploading multiple files, remote path must be a directory
+		if len(matches) > 1 {
+			// Ensure remote path ends with /
+			if !strings.HasSuffix(remotePath, "/") {
+				remotePath += "/"
+			}
+			// Use filename from match
+			targetPath = remotePath + filepath.Base(match.Path)
+		} else {
+			// Single file - use remote path as-is
+			targetPath = remotePath
+		}
+
+		if len(matches) > 1 {
+			fmt.Printf("\n[%d/%d] ", i+1, len(matches))
+		}
+
+		uploadSingleFile(client, match.Path, targetPath)
+	}
+
+	if len(matches) > 1 {
+		fmt.Printf("\n✓ Uploaded %d files to %s\n", len(matches), remotePath)
+	}
+}
+
+func uploadSingleFile(client *transport.HTTPClient, localPath, remotePath string) {
 	// Read file data
 	data, err := os.ReadFile(localPath)
 	if err != nil {
@@ -211,7 +251,7 @@ func doPut(client *transport.HTTPClient, args []string) {
 
 	// For small files, upload as single chunk without progress bar
 	if fileSize < chunkSize {
-		fmt.Printf("Uploading %s (%d bytes)...\n", localPath, fileSize)
+		fmt.Printf("Uploading %s (%d bytes)...\n", filepath.Base(localPath), fileSize)
 
 		chunkData := transport.ChunkData{
 			Path:     remotePath,
@@ -225,13 +265,13 @@ func doPut(client *transport.HTTPClient, args []string) {
 			log.Fatalf("Upload failed: %v", err)
 		}
 
-		fmt.Printf("✓ Upload complete: %s → %s (%d bytes)\n", localPath, remotePath, fileSize)
+		fmt.Printf("✓ Upload complete: %s → %s (%d bytes)\n", filepath.Base(localPath), remotePath, fileSize)
 		return
 	}
 
 	// For larger files, use chunked upload with progress bar
 	totalChunks := (fileSize + chunkSize - 1) / chunkSize
-	fmt.Printf("Uploading %s (%d bytes) in %d chunks...\n", localPath, fileSize, totalChunks)
+	fmt.Printf("Uploading %s (%d bytes) in %d chunks...\n", filepath.Base(localPath), fileSize, totalChunks)
 
 	// Create progress bar and speed tracking
 	progressWidth := 50
@@ -292,7 +332,7 @@ func doPut(client *transport.HTTPClient, args []string) {
 		}
 	}
 
-	fmt.Printf("✓ Upload complete: %s → %s (%d bytes)\n", localPath, remotePath, fileSize)
+	fmt.Printf("✓ Upload complete: %s → %s (%d bytes)\n", filepath.Base(localPath), remotePath, fileSize)
 }
 
 func doList(client *transport.HTTPClient, args []string) {

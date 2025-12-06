@@ -20,9 +20,10 @@
 **Fast** - Lightweight binaries with progress tracking  
 **Simple** - Each tool does one thing well  
 **Resume** - Resumable uploads for large files  
-**Auto-discovery** - Find servers automatically on local network
-**Progress tracking** - Visual progress bars with speed display
+**Auto-discovery** - Find servers automatically on local network  
+**Progress tracking** - Visual progress bars with speed display  
 **Auto-firewall** - Automatic Windows Firewall configuration  
+**Wildcard support** - Upload multiple files using glob patterns (*, ?, [])  
 
 ## Behavior Notes
 
@@ -123,8 +124,13 @@ Commands:
   discover              Discover GoFlux servers on local network
   config <server:port>  Configure client for discovered server
   get <remote> <local>  Download a file
-  put <local> <remote>  Upload a file
+  put <local> <remote>  Upload file(s) - supports wildcards (*, ?, [])
   ls [path]            List files/directories  
+
+Wildcard examples:
+  gfl put *.txt uploads/           # Upload all .txt files
+  gfl put report*.pdf archives/    # Upload files matching pattern
+  gfl put file[123].log logs/      # Upload file1.log, file2.log, file3.log
 
 By default the client reads `goflux.json` from the directory where `gfl.exe` resides. Use `-config` to point at an alternate configuration file.
 ```
@@ -179,6 +185,11 @@ Create `goflux.json`:
 
 # Upload with progress
 .\gfl.exe put largefile.zip backups/largefile.zip
+
+# Upload multiple files with wildcards
+.\gfl.exe put *.txt uploads/
+.\gfl.exe put logs/*.log archives/logs/
+.\gfl.exe put report-202[34].pdf reports/
 
 # Upload using environment token (no config needed)
 $env:GOFLUX_TOKEN_LITE = "your-token-here"
