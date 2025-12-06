@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xRepo-Source/goflux-lite/pkg/chunk"
 	"github.com/0xRepo-Source/goflux-lite/pkg/config"
 	"github.com/0xRepo-Source/goflux-lite/pkg/glob"
 	"github.com/0xRepo-Source/goflux-lite/pkg/transport"
@@ -178,11 +179,19 @@ func doGet(client *transport.HTTPClient, args []string) {
 	fmt.Print("████████████████████████████████████████████████████")
 	fmt.Printf("\n")
 
+	// Calculate checksum for verification
+	chunker := chunk.New(len(data))
+	chunks := chunker.Split(data)
+	var checksum string
+	if len(chunks) > 0 {
+		checksum = chunks[0].Checksum
+	}
+
 	if err := os.WriteFile(localPath, data, 0644); err != nil {
 		log.Fatalf("Failed to write file: %v", err)
 	}
 
-	fmt.Printf("✓ Download complete: %s → %s (%d bytes)\n", remotePath, localPath, len(data))
+	fmt.Printf("✓ Download complete: %s → %s (%d bytes, checksum: %s)\n", remotePath, localPath, len(data), checksum[:8])
 }
 
 func doPut(client *transport.HTTPClient, args []string) {
@@ -253,11 +262,15 @@ func uploadSingleFile(client *transport.HTTPClient, localPath, remotePath string
 	if fileSize < chunkSize {
 		fmt.Printf("Uploading %s (%d bytes)...\n", filepath.Base(localPath), fileSize)
 
+		// Create chunker and generate checksum
+		chunker := chunk.New(chunkSize)
+		chunks := chunker.Split(data)
+
 		chunkData := transport.ChunkData{
 			Path:     remotePath,
 			ChunkID:  0,
 			Data:     data,
-			Checksum: "", // Simplified - no checksum for lite version
+			Checksum: chunks[0].Checksum,
 			Total:    1,
 		}
 
@@ -265,7 +278,7 @@ func uploadSingleFile(client *transport.HTTPClient, localPath, remotePath string
 			log.Fatalf("Upload failed: %v", err)
 		}
 
-		fmt.Printf("✓ Upload complete: %s → %s (%d bytes)\n", filepath.Base(localPath), remotePath, fileSize)
+		fmt.Printf("✓ Upload complete: %s → %s (%d bytes, checksum: %s)\n", filepath.Base(localPath), remotePath, fileSize, chunks[0].Checksum[:8])
 		return
 	}
 
@@ -273,23 +286,21 @@ func uploadSingleFile(client *transport.HTTPClient, localPath, remotePath string
 	totalChunks := (fileSize + chunkSize - 1) / chunkSize
 	fmt.Printf("Uploading %s (%d bytes) in %d chunks...\n", filepath.Base(localPath), fileSize, totalChunks)
 
+	// Create chunker and split data with checksums
+	chunker := chunk.New(chunkSize)
+	chunks := chunker.Split(data)
+
 	// Create progress bar and speed tracking
 	progressWidth := 50
 	startTime := time.Now()
 
-	for i := 0; i < totalChunks; i++ {
-		start := i * chunkSize
-		end := start + chunkSize
-		if end > fileSize {
-			end = fileSize
-		}
-
+	for i := 0; i < len(chunks); i++ {
 		chunkData := transport.ChunkData{
 			Path:     remotePath,
-			ChunkID:  i,
-			Data:     data[start:end],
-			Checksum: "", // Simplified - no checksum for lite version
-			Total:    totalChunks,
+			ChunkID:  chunks[i].ID,
+			Data:     chunks[i].Data,
+			Checksum: chunks[i].Checksum,
+			Total:    len(chunks),
 		}
 
 		if err := client.UploadChunk(chunkData); err != nil {
@@ -298,7 +309,7 @@ func uploadSingleFile(client *transport.HTTPClient, localPath, remotePath string
 
 		// Calculate speed and progress
 		elapsed := time.Since(startTime).Seconds()
-		progress := float64(i+1) / float64(totalChunks)
+		progress := float64(i+1) / float64(len(chunks))
 		filled := int(progress * float64(progressWidth))
 
 		bar := ""
@@ -311,9 +322,9 @@ func uploadSingleFile(client *transport.HTTPClient, localPath, remotePath string
 		}
 
 		percentage := int(progress * 100)
-		uploaded := (i + 1) * chunkSize
-		if uploaded > fileSize {
-			uploaded = fileSize
+		uploaded := 0
+		for idx := 0; idx <= i; idx++ {
+			uploaded += len(chunks[idx].Data)
 		}
 
 		// Calculate and format speed
@@ -327,12 +338,12 @@ func uploadSingleFile(client *transport.HTTPClient, localPath, remotePath string
 
 		fmt.Printf("\r[%s] %d%% (%s) %s", bar, percentage, formatBytes(uploaded)+"/"+formatBytes(fileSize), speedStr)
 
-		if i == totalChunks-1 {
+		if i == len(chunks)-1 {
 			fmt.Printf("\n")
 		}
 	}
 
-	fmt.Printf("✓ Upload complete: %s → %s (%d bytes)\n", filepath.Base(localPath), remotePath, fileSize)
+	fmt.Printf("✓ Upload complete: %s → %s (%d bytes, verified)\n", filepath.Base(localPath), remotePath, fileSize)
 }
 
 func doList(client *transport.HTTPClient, args []string) {

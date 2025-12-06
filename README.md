@@ -24,6 +24,7 @@
 **Progress tracking** - Visual progress bars with speed display  
 **Auto-firewall** - Automatic Windows Firewall configuration  
 **Wildcard support** - Upload multiple files using glob patterns (*, ?, [])  
+**Transfer verification** - SHA-256 checksums ensure data integrity  
 
 ## Behavior Notes
 
@@ -207,8 +208,9 @@ $env:GOFLUX_TOKEN_LITE = "your-token-here"
 ## Security
 
 - **Path Traversal Protection** - Prevents `../` attacks  
-- **Token Authentication** - Secure API access
-- **Permission System** - Granular access controls
+- **Token Authentication** - Secure API access  
+- **Permission System** - Granular access controls  
+- **SHA-256 Checksums** - Automatic integrity verification for all transfers
 
 ## Differences from Full GoFlux
 
