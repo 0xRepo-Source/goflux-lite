@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/0xRepo-Source/goflux-lite/pkg/errors"
 )
 
 // Storage is an interface for storing and retrieving files.
@@ -55,7 +57,7 @@ func (l *Local) sanitizePath(path string) (string, error) {
 
 	// Ensure the resolved path is still within the root directory
 	if !strings.HasPrefix(absPath, absRoot+string(filepath.Separator)) && absPath != absRoot {
-		return "", fmt.Errorf("path traversal attempt detected: %s", path)
+		return "", errors.NewStorageError(errors.StorageErrorPathTraversal, path, "path traversal attempt detected")
 	}
 
 	return fullPath, nil
@@ -115,7 +117,7 @@ func (l *Local) Delete(path string) error {
 	// Check if file/directory exists
 	info, err := os.Stat(fullPath)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("path does not exist: %s", path)
+		return errors.NewStorageError(errors.StorageErrorNotFound, path, "path does not exist")
 	}
 	if err != nil {
 		return fmt.Errorf("failed to stat path: %w", err)

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/0xRepo-Source/goflux-lite/pkg/errors"
 )
 
 func TestNewTokenStore(t *testing.T) {
@@ -239,6 +241,14 @@ func TestTokenStore_Validate(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for invalid token")
 	}
+	if !errors.IsAuthError(err) {
+		t.Error("expected AuthError for invalid token")
+	}
+	if errType, ok := errors.GetAuthErrorType(err); ok {
+		if errType != errors.AuthErrorInvalidToken {
+			t.Errorf("expected AuthErrorInvalidToken, got %v", errType)
+		}
+	}
 }
 
 func TestTokenStore_Validate_Expired(t *testing.T) {
@@ -272,6 +282,11 @@ func TestTokenStore_Validate_Expired(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for expired token")
 	}
+	if errType, ok := errors.GetAuthErrorType(err); ok {
+		if errType != errors.AuthErrorExpiredToken {
+			t.Errorf("expected AuthErrorExpiredToken, got %v", errType)
+		}
+	}
 }
 
 func TestTokenStore_Validate_Revoked(t *testing.T) {
@@ -304,6 +319,11 @@ func TestTokenStore_Validate_Revoked(t *testing.T) {
 	_, _, err := store.Validate(rawToken)
 	if err == nil {
 		t.Error("expected error for revoked token")
+	}
+	if errType, ok := errors.GetAuthErrorType(err); ok {
+		if errType != errors.AuthErrorRevokedToken {
+			t.Errorf("expected AuthErrorRevokedToken, got %v", errType)
+		}
 	}
 }
 

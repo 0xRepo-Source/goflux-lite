@@ -8,6 +8,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/0xRepo-Source/goflux-lite/pkg/errors"
 )
 
 // Token represents an authentication token
@@ -112,15 +114,15 @@ func (ts *TokenStore) Validate(tokenStr string) (string, []string, error) {
 
 	token, exists := ts.tokens[tokenHash]
 	if !exists {
-		return "", nil, fmt.Errorf("invalid token")
+		return "", nil, errors.NewAuthError(errors.AuthErrorInvalidToken, "invalid token")
 	}
 
 	if token.Revoked {
-		return "", nil, fmt.Errorf("token has been revoked")
+		return "", nil, errors.NewAuthError(errors.AuthErrorRevokedToken, "token has been revoked")
 	}
 
 	if time.Now().After(token.ExpiresAt) {
-		return "", nil, fmt.Errorf("token has expired")
+		return "", nil, errors.NewAuthError(errors.AuthErrorExpiredToken, "token has expired")
 	}
 
 	return token.User, token.Permissions, nil

@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/0xRepo-Source/goflux-lite/pkg/errors"
 )
 
 func TestNewLocal(t *testing.T) {
@@ -215,6 +217,11 @@ func TestLocal_Delete_NonExistent(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when deleting non-existent file")
 	}
+	if errType, ok := errors.GetStorageErrorType(err); ok {
+		if errType != errors.StorageErrorNotFound {
+			t.Errorf("expected StorageErrorNotFound, got %v", errType)
+		}
+	}
 }
 
 func TestLocal_Mkdir(t *testing.T) {
@@ -274,6 +281,13 @@ func TestLocal_PathTraversal(t *testing.T) {
 		err := local.Put(path, []byte("malicious"))
 		if err == nil {
 			t.Errorf("expected error for path traversal attempt: %s", path)
+		}
+		if errors.IsStorageError(err) {
+			if errType, ok := errors.GetStorageErrorType(err); ok {
+				if errType != errors.StorageErrorPathTraversal {
+					t.Errorf("expected StorageErrorPathTraversal for %s, got %v", path, errType)
+				}
+			}
 		}
 
 		_, err = local.Get(path)
