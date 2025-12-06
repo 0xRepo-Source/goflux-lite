@@ -1,3 +1,6 @@
+// Package storage provides file storage abstractions for goflux-lite.
+// It defines a Storage interface and implements a local filesystem backend
+// with path traversal protection.
 package storage
 
 import (
@@ -10,6 +13,8 @@ import (
 )
 
 // Storage is an interface for storing and retrieving files.
+// Implementations must provide thread-safe operations and protect against
+// path traversal attacks.
 type Storage interface {
 	Put(path string, data []byte) error
 	Get(path string) ([]byte, error)
@@ -19,12 +24,17 @@ type Storage interface {
 	Mkdir(path string) error
 }
 
-// Local is a simple local filesystem storage implementation.
+// Local is a local filesystem storage implementation.
+// It stores files under a root directory and validates all paths to prevent
+// directory traversal attacks.
 type Local struct {
+	// Root is the base directory for all storage operations
 	Root string
 }
 
-// NewLocal creates a new local filesystem storage backend.
+// NewLocal creates a new local filesystem storage backend rooted at the specified directory.
+// The root directory is created if it doesn't exist.
+// Returns an error if the directory cannot be created.
 func NewLocal(root string) (*Local, error) {
 	if err := os.MkdirAll(root, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create root dir: %w", err)
@@ -63,6 +73,9 @@ func (l *Local) sanitizePath(path string) (string, error) {
 	return fullPath, nil
 }
 
+// Put stores data at the specified path within the storage root.
+// Parent directories are created automatically. Returns StorageError if the path
+// is invalid or attempts directory traversal.
 func (l *Local) Put(path string, data []byte) error {
 	fullPath, err := l.sanitizePath(path)
 	if err != nil {
@@ -75,6 +88,8 @@ func (l *Local) Put(path string, data []byte) error {
 	return os.WriteFile(fullPath, data, 0644)
 }
 
+// Get retrieves data from the specified path within the storage root.
+// Returns StorageError if the path is invalid or attempts directory traversal.
 func (l *Local) Get(path string) ([]byte, error) {
 	fullPath, err := l.sanitizePath(path)
 	if err != nil {
@@ -83,6 +98,8 @@ func (l *Local) Get(path string) ([]byte, error) {
 	return os.ReadFile(fullPath)
 }
 
+// Exists checks if a file or directory exists at the specified path.
+// Returns false if the path is invalid or attempts directory traversal.
 func (l *Local) Exists(path string) bool {
 	fullPath, err := l.sanitizePath(path)
 	if err != nil {
@@ -92,6 +109,8 @@ func (l *Local) Exists(path string) bool {
 	return err == nil
 }
 
+// List returns the names of all entries in the specified directory.
+// Returns StorageError if the path is invalid or the directory cannot be read.
 func (l *Local) List(path string) ([]string, error) {
 	fullPath, err := l.sanitizePath(path)
 	if err != nil {
@@ -108,6 +127,8 @@ func (l *Local) List(path string) ([]string, error) {
 	return names, nil
 }
 
+// Delete removes a file or directory at the specified path.
+// Directories are removed recursively. Returns StorageErrorNotFound if the path doesn't exist.
 func (l *Local) Delete(path string) error {
 	fullPath, err := l.sanitizePath(path)
 	if err != nil {
@@ -130,6 +151,8 @@ func (l *Local) Delete(path string) error {
 	return os.Remove(fullPath)
 }
 
+// Mkdir creates a directory at the specified path, including any necessary parent directories.
+// Returns StorageError if the path is invalid or attempts directory traversal.
 func (l *Local) Mkdir(path string) error {
 	fullPath, err := l.sanitizePath(path)
 	if err != nil {

@@ -1,3 +1,5 @@
+// Package chunk provides functionality for splitting and reassembling data into resumable chunks.
+// It uses SHA-256 checksums to verify data integrity during reassembly.
 package chunk
 
 import (
@@ -6,18 +8,23 @@ import (
 	"fmt"
 )
 
-// Chunker is responsible for splitting data into resume-able chunks.
+// Chunker is responsible for splitting data into resumable chunks of a specified size.
+// It generates checksums for each chunk to enable integrity verification.
 type Chunker struct {
+	// Size is the maximum size of each chunk in bytes
 	Size int
 }
 
-// Chunk represents a single chunk of data.
+// Chunk represents a single piece of data with metadata for reassembly.
+// Each chunk includes an ID for ordering, the data payload, and a SHA-256 checksum.
 type Chunk struct {
-	ID       int
-	Data     []byte
-	Checksum string
+	ID       int    // Sequential identifier starting from 0
+	Data     []byte // The chunk payload
+	Checksum string // SHA-256 hash of the data in hex format
 }
 
+// New creates a new Chunker with the specified chunk size.
+// If size is zero or negative, a default of 1MB is used.
 func New(size int) *Chunker {
 	if size <= 0 {
 		size = 1024 * 1024 // 1MB default
@@ -25,7 +32,9 @@ func New(size int) *Chunker {
 	return &Chunker{Size: size}
 }
 
-// Split splits data into chunks.
+// Split divides data into chunks of the configured size.
+// Each chunk is assigned a sequential ID and a SHA-256 checksum for integrity verification.
+// Returns an empty slice if data is empty.
 func (c *Chunker) Split(data []byte) []Chunk {
 	var chunks []Chunk
 	totalSize := len(data)
@@ -49,7 +58,10 @@ func (c *Chunker) Split(data []byte) []Chunk {
 	return chunks
 }
 
-// Reassemble combines chunks back into original data.
+// Reassemble combines chunks back into their original data form.
+// It validates that chunks are in sequential order and verifies SHA-256 checksums.
+// For fallback checksums (from non-HTTPS uploads), validation is relaxed with a warning.
+// Returns an error if chunks are missing, out of order, or have invalid checksums.
 func (c *Chunker) Reassemble(chunks []Chunk) ([]byte, error) {
 	var result []byte
 	for i, chunk := range chunks {

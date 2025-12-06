@@ -1,3 +1,6 @@
+// Package auth provides authentication and authorization functionality for goflux-lite.
+// It implements token-based authentication with support for permissions, expiration,
+// and revocation.
 package auth
 
 import (
@@ -12,7 +15,9 @@ import (
 	"github.com/0xRepo-Source/goflux-lite/pkg/errors"
 )
 
-// Token represents an authentication token
+// Token represents an authentication token with associated metadata.
+// Tokens are identified by a hash of the secret value and include
+// user information, permissions, and validity period.
 type Token struct {
 	ID          string    `json:"id"`
 	TokenHash   string    `json:"token_hash"`
@@ -23,19 +28,24 @@ type Token struct {
 	Revoked     bool      `json:"revoked"`
 }
 
-// TokenStore holds all tokens with thread-safe access
+// TokenStore manages authentication tokens with thread-safe access.
+// It persists tokens to a JSON file and provides methods for validation,
+// loading, and retrieval.
 type TokenStore struct {
 	mu       sync.RWMutex
 	tokens   map[string]*Token // key is token hash
 	filename string
 }
 
-// TokenStoreFile represents the JSON file format
+// TokenStoreFile represents the JSON file format for persisting tokens.
+// This structure is used for serialization and deserialization of the token store.
 type TokenStoreFile struct {
 	Tokens []Token `json:"tokens"`
 }
 
-// NewTokenStore creates a new token store
+// NewTokenStore creates a new token store that persists to the specified file.
+// It automatically loads existing tokens from the file if it exists.
+// Returns an error if the file cannot be read or parsed.
 func NewTokenStore(filename string) (*TokenStore, error) {
 	ts := &TokenStore{
 		tokens:   make(map[string]*Token),
@@ -49,7 +59,9 @@ func NewTokenStore(filename string) (*TokenStore, error) {
 	return ts, nil
 }
 
-// Load reads tokens from file
+// Load reads tokens from the configured file and populates the token store.
+// If the file doesn't exist, this is not an error and returns nil.
+// Returns an error if the file cannot be read or contains invalid JSON.
 func (ts *TokenStore) Load() error {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
@@ -82,12 +94,14 @@ func (ts *TokenStore) Load() error {
 	return nil
 }
 
-// Reload reloads tokens from file
+// Reload reloads tokens from the file, replacing the current in-memory store.
+// This is useful for picking up external changes to the token file.
 func (ts *TokenStore) Reload() error {
 	return ts.Load()
 }
 
-// GetTokenByID retrieves a token by its ID (for challenge-response auth)
+// GetTokenByID retrieves a token by its ID for challenge-response authentication.
+// Returns nil if the token is not found, revoked, or expired.
 func (ts *TokenStore) GetTokenByID(tokenID string) *Token {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
@@ -103,7 +117,8 @@ func (ts *TokenStore) GetTokenByID(tokenID string) *Token {
 	return nil
 }
 
-// Validate checks if a token is valid and returns the associated user and permissions
+// Validate checks if a token string is valid and returns the associated user and permissions.
+// The token is hashed before lookup. Returns AuthError types for invalid, revoked, or expired tokens.
 func (ts *TokenStore) Validate(tokenStr string) (string, []string, error) {
 	// Hash the provided token
 	hash := sha256.Sum256([]byte(tokenStr))
@@ -128,7 +143,8 @@ func (ts *TokenStore) Validate(tokenStr string) (string, []string, error) {
 	return token.User, token.Permissions, nil
 }
 
-// HasPermission checks if a user has a specific permission
+// HasPermission checks if a user has a specific permission.
+// Returns true if the permissions list contains the required permission or the wildcard "*".
 func HasPermission(permissions []string, required string) bool {
 	for _, perm := range permissions {
 		if perm == required || perm == "*" {

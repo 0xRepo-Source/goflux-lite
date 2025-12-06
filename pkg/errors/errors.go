@@ -1,3 +1,6 @@
+// Package errors provides custom error types for the goflux-lite application.
+// It defines four error categories: AuthError, StorageError, NetworkError, and ValidationError.
+// All errors support error wrapping and can be inspected using errors.Is and errors.As.
 package errors
 
 import (
@@ -7,21 +10,23 @@ import (
 
 // Error categories for goflux-lite
 
-// AuthError represents authentication/authorization errors
+// AuthError represents authentication and authorization failures.
+// It includes a type field to distinguish between different auth error conditions.
 type AuthError struct {
-	Type    AuthErrorType
-	Message string
-	Err     error
+	Type    AuthErrorType // Specific category of auth error
+	Message string        // Human-readable error description
+	Err     error         // Underlying cause, if any
 }
 
+// AuthErrorType categorizes different authentication and authorization failures.
 type AuthErrorType int
 
 const (
-	AuthErrorInvalidToken AuthErrorType = iota
-	AuthErrorExpiredToken
-	AuthErrorRevokedToken
-	AuthErrorInsufficientPermissions
-	AuthErrorInvalidCredentials
+	AuthErrorInvalidToken            AuthErrorType = iota // Token format is invalid
+	AuthErrorExpiredToken                                 // Token has passed its expiration time
+	AuthErrorRevokedToken                                 // Token has been explicitly revoked
+	AuthErrorInsufficientPermissions                      // User lacks required permissions
+	AuthErrorInvalidCredentials                           // Username or password is incorrect
 )
 
 func (e *AuthError) Error() string {
@@ -52,23 +57,25 @@ func NewAuthErrorWithCause(errType AuthErrorType, message string, err error) *Au
 	}
 }
 
-// StorageError represents file storage errors
+// StorageError represents file system and storage operation failures.
+// It includes the problematic path and a type to identify the failure category.
 type StorageError struct {
-	Type    StorageErrorType
-	Path    string
-	Message string
-	Err     error
+	Type    StorageErrorType // Specific category of storage error
+	Path    string           // File path associated with the error
+	Message string           // Human-readable error description
+	Err     error            // Underlying cause, if any
 }
 
+// StorageErrorType categorizes different storage operation failures.
 type StorageErrorType int
 
 const (
-	StorageErrorNotFound StorageErrorType = iota
-	StorageErrorPathTraversal
-	StorageErrorPermissionDenied
-	StorageErrorAlreadyExists
-	StorageErrorInvalidPath
-	StorageErrorIO
+	StorageErrorNotFound         StorageErrorType = iota // Requested file or directory not found
+	StorageErrorPathTraversal                            // Path attempts to escape storage root
+	StorageErrorPermissionDenied                         // Insufficient permissions to access path
+	StorageErrorAlreadyExists                            // File or directory already exists
+	StorageErrorInvalidPath                              // Path format is invalid
+	StorageErrorIO                                       // I/O operation failed
 )
 
 func (e *StorageError) Error() string {
@@ -101,21 +108,23 @@ func NewStorageErrorWithCause(errType StorageErrorType, path, message string, er
 	}
 }
 
-// NetworkError represents network/transport errors
+// NetworkError represents network communication and transport failures.
+// It categorizes errors related to connectivity, timeouts, and protocol issues.
 type NetworkError struct {
-	Type    NetworkErrorType
-	Message string
-	Err     error
+	Type    NetworkErrorType // Specific category of network error
+	Message string           // Human-readable error description
+	Err     error            // Underlying cause, if any
 }
 
+// NetworkErrorType categorizes different network and transport failures.
 type NetworkErrorType int
 
 const (
-	NetworkErrorConnection NetworkErrorType = iota
-	NetworkErrorTimeout
-	NetworkErrorInvalidResponse
-	NetworkErrorServerUnavailable
-	NetworkErrorBadRequest
+	NetworkErrorConnection        NetworkErrorType = iota // Failed to establish connection
+	NetworkErrorTimeout                                   // Operation exceeded time limit
+	NetworkErrorInvalidResponse                           // Server response was malformed
+	NetworkErrorServerUnavailable                         // Server is unreachable or down
+	NetworkErrorBadRequest                                // Request was rejected by server
 )
 
 func (e *NetworkError) Error() string {
@@ -146,11 +155,12 @@ func NewNetworkErrorWithCause(errType NetworkErrorType, message string, err erro
 	}
 }
 
-// ValidationError represents data validation errors
+// ValidationError represents data validation failures.
+// It identifies the specific field that failed validation and provides context.
 type ValidationError struct {
-	Field   string
-	Message string
-	Err     error
+	Field   string // Name of the field that failed validation
+	Message string // Human-readable error description
+	Err     error  // Underlying cause, if any
 }
 
 func (e *ValidationError) Error() string {
@@ -174,31 +184,36 @@ func NewValidationError(field, message string) *ValidationError {
 
 // Helper functions to check error types
 
-// IsAuthError checks if an error is an AuthError
+// IsAuthError checks if an error is or wraps an AuthError.
+// It uses errors.As to unwrap error chains.
 func IsAuthError(err error) bool {
 	var authErr *AuthError
 	return errors.As(err, &authErr)
 }
 
-// IsStorageError checks if an error is a StorageError
+// IsStorageError checks if an error is or wraps a StorageError.
+// It uses errors.As to unwrap error chains.
 func IsStorageError(err error) bool {
 	var storageErr *StorageError
 	return errors.As(err, &storageErr)
 }
 
-// IsNetworkError checks if an error is a NetworkError
+// IsNetworkError checks if an error is or wraps a NetworkError.
+// It uses errors.As to unwrap error chains.
 func IsNetworkError(err error) bool {
 	var netErr *NetworkError
 	return errors.As(err, &netErr)
 }
 
-// IsValidationError checks if an error is a ValidationError
+// IsValidationError checks if an error is or wraps a ValidationError.
+// It uses errors.As to unwrap error chains.
 func IsValidationError(err error) bool {
 	var valErr *ValidationError
 	return errors.As(err, &valErr)
 }
 
-// GetAuthErrorType extracts the AuthErrorType from an error
+// GetAuthErrorType extracts the AuthErrorType from an error.
+// Returns the type and true if the error is an AuthError, otherwise returns zero value and false.
 func GetAuthErrorType(err error) (AuthErrorType, bool) {
 	var authErr *AuthError
 	if errors.As(err, &authErr) {
@@ -207,7 +222,8 @@ func GetAuthErrorType(err error) (AuthErrorType, bool) {
 	return 0, false
 }
 
-// GetStorageErrorType extracts the StorageErrorType from an error
+// GetStorageErrorType extracts the StorageErrorType from an error.
+// Returns the type and true if the error is a StorageError, otherwise returns zero value and false.
 func GetStorageErrorType(err error) (StorageErrorType, bool) {
 	var storageErr *StorageError
 	if errors.As(err, &storageErr) {
