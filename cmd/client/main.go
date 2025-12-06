@@ -14,6 +14,7 @@ import (
 	"github.com/0xRepo-Source/goflux-lite/pkg/config"
 	"github.com/0xRepo-Source/goflux-lite/pkg/glob"
 	"github.com/0xRepo-Source/goflux-lite/pkg/transport"
+	"github.com/0xRepo-Source/goflux-lite/pkg/updater"
 )
 
 func main() {
@@ -60,6 +61,8 @@ func main() {
 		doDiscover()
 	case "config":
 		doConfig(args[1:])
+	case "update":
+		doUpdate(args[1:])
 	case "get":
 		doGet(client, args[1:])
 	case "put":
@@ -90,6 +93,7 @@ OPTIONS:
 COMMANDS:
   discover              Discover GoFlux servers on local network
   config <server>       Configure client for discovered server
+  update [--local]      Check for and install updates
   get <remote> <local>  Download file(s) - supports wildcards (*, ?, [])
   put <local> <remote>  Upload file(s) - supports wildcards (*, ?, [])
   ls [path]            List files/directories
@@ -613,4 +617,86 @@ func resolvePutPaths(args []string) (string, string) {
 	localPath := strings.TrimSpace(strings.Join(trimmed[:len(trimmed)-1], " "))
 	remotePath := strings.TrimSpace(trimmed[len(trimmed)-1])
 	return localPath, remotePath
+}
+
+func doUpdate(args []string) {
+	useLocal := false
+	for _, arg := range args {
+		if arg == "--local" || arg == "-l" {
+			useLocal = true
+		}
+	}
+
+	fmt.Println("Checking for updates...")
+
+	// Create updater
+	upd := updater.New(currentVersion, updateManifestURL)
+
+	// If local flag is set, try to use local server
+	if useLocal {
+		// Load config to get server URL
+		configPath := filepath.Join(executableDir(), "goflux.json")
+		if cfg, err := loadConfig(configPath); err == nil && cfg.Client.ServerURL != "" {
+			upd.SetLocalServer(cfg.Client.ServerURL)
+			fmt.Printf("Using local update server: %s\n", cfg.Client.ServerURL)
+		}
+	}
+
+	// Check for updates
+	manifest, err := upd.CheckForUpdate()
+	if err != nil {
+		log.Fatalf("Update check failed: %v", err)
+	}
+
+	if manifest == nil {
+		fmt.Printf("You are already running the latest version (%s)\n", currentVersion)
+		return
+	}
+
+	fmt.Printf("Update available: %s → %s\n", currentVersion, manifest.Version)
+	fmt.Printf("Released: %s\n", manifest.ReleaseDate)
+	if manifest.Notes != "" {
+		fmt.Printf("\nRelease notes:\n%s\n\n", manifest.Notes)
+	}
+
+	// Confirm update
+	fmt.Print("Do you want to install this update? (y/N): ")
+	var response string
+	fmt.Scanln(&response)
+	if strings.ToLower(response) != "y" {
+		fmt.Println("Update cancelled")
+		return
+	}
+
+	// Download update with progress
+	fmt.Println("Downloading update...")
+	progressBar := 50
+	var lastProgress int
+
+	downloadPath, err := upd.DownloadUpdate(manifest, func(downloaded, total int64) {
+		if total == 0 {
+			return
+		}
+		progress := int((float64(downloaded) / float64(total)) * float64(progressBar))
+		if progress != lastProgress {
+			bar := strings.Repeat("█", progress) + strings.Repeat("░", progressBar-progress)
+			fmt.Printf("\r[%s] %3d%%", bar, int((float64(downloaded)/float64(total))*100))
+			lastProgress = progress
+		}
+	})
+
+	if err != nil {
+		log.Fatalf("Download failed: %v", err)
+	}
+	fmt.Println()
+
+	// Install update
+	fmt.Println("Installing update...")
+	if err := upd.Install(downloadPath); err != nil {
+		log.Fatalf("Installation failed: %v\n\nYou can try running the update again.", err)
+	}
+
+	fmt.Printf("\n✓ Update installed successfully!\n")
+	fmt.Println("Please restart gfl to use the new version.")
+	fmt.Println("\nA backup of the previous version was saved as gfl.exe.backup")
 }

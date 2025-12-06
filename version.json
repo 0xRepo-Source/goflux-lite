@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "release_date": "2025-12-06",
+  "notes": "New features:\n- Wildcard support for uploads and downloads\n- SHA-256 checksum verification\n- Auto-update functionality\n- Comprehensive godoc comments",
+  "binaries": {
+    "windows_amd64": {
+      "url": "https://github.com/0xRepo-Source/goflux-lite/releases/download/v0.2.0/gfl-windows-amd64.exe",
+      "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+      "size": 8388608
+    },
+    "linux_amd64": {
+      "url": "https://github.com/0xRepo-Source/goflux-lite/releases/download/v0.2.0/gfl-linux-amd64",
+      "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+      "size": 8388608
+    },
+    "darwin_amd64": {
+      "url": "https://github.com/0xRepo-Source/goflux-lite/releases/download/v0.2.0/gfl-darwin-amd64",
+      "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+      "size": 8388608
+    },
+    "darwin_arm64": {
+      "url": "https://github.com/0xRepo-Source/goflux-lite/releases/download/v0.2.0/gfl-darwin-arm64",
+      "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+      "size": 8388608
+    }
+  }
+}

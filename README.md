@@ -25,6 +25,7 @@
 **Auto-firewall** - Automatic Windows Firewall configuration  
 **Wildcard support** - Upload multiple files using glob patterns (*, ?, [])  
 **Transfer verification** - SHA-256 checksums ensure data integrity  
+**Auto-update** - Self-update from GitHub or local network server  
 
 ## Behavior Notes
 
@@ -124,6 +125,7 @@ gfl.exe [-config goflux.json] <command> [args...]
 Commands:
   discover              Discover GoFlux servers on local network
   config <server:port>  Configure client for discovered server
+  update [--local]      Check for and install updates
   get <remote> <local>  Download file(s) - supports wildcards (*, ?, [])
   put <local> <remote>  Upload file(s) - supports wildcards (*, ?, [])
   ls [path]            List files/directories  
@@ -210,6 +212,56 @@ $env:GOFLUX_TOKEN_LITE = "your-token-here"
 .\gfl.exe ls
 .\gfl.exe ls backups/
 .\gfl.exe ls backups/2024/
+
+# Update client
+.\gfl.exe update              # Check GitHub for updates
+.\gfl.exe update --local      # Check local server for updates
+```
+
+## Auto-Update
+
+The client includes self-update functionality to keep your installation current.
+
+### Update Sources
+
+1. **GitHub Releases** (default) - Downloads from the official repository
+2. **Local Network Server** (`--local` flag) - Updates from your configured GoFlux server
+
+### Usage
+
+```bash
+# Check for updates from GitHub
+.\gfl.exe update
+
+# Check for updates from local server
+.\gfl.exe update --local
+```
+
+The update process:
+1. Checks version manifest for new releases
+2. Downloads the binary for your platform
+3. Verifies SHA-256 checksum
+4. Backs up current version to `gfl.exe.backup`
+5. Installs the new version
+6. Requires restart to use new version
+
+### Hosting Updates on Your Server
+
+To enable local updates, place `version.json` in your server's root directory with this structure:
+
+```json
+{
+  "version": "0.2.0",
+  "release_date": "2025-12-06",
+  "notes": "Release notes here",
+  "binaries": {
+    "windows_amd64": {
+      "url": "http://yourserver:8080/downloads/gfl.exe",
+      "checksum": "sha256-hash-here",
+      "size": 8388608
+    }
+  }
+}
 ```
 
 ## Security
